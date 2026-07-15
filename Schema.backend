@@ -1,0 +1,152 @@
+import {
+  int,
+  mysqlEnum,
+  mysqlTable,
+  text,
+  timestamp,
+  varchar,
+  decimal,
+  json,
+} from "drizzle-orm/mysql-core";
+import { sql } from "drizzle-orm";
+
+/**
+ * Core user table backing auth flow.
+ */
+export const users = mysqlTable("users", {
+  id: int("id").autoincrement().primaryKey(),
+  email: varchar("email", { length: 320 }).unique(),
+  name: text("name"),
+  password: varchar("password", { length: 255 }),
+  openId: varchar("openId", { length: 64 }).unique(),
+  loginMethod: varchar("loginMethod", { length: 64 }),
+  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
+});
+
+export type User = typeof users.$inferSelect;
+export type InsertUser = typeof users.$inferInsert;
+export interface UserWithoutPassword extends Omit<User, 'password'> {}
+
+/**
+ * Ward table: represents the 10 high-risk wards in Nairobi
+ */
+export const wards = mysqlTable("wards", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  nameSwahili: varchar("nameSwahili", { length: 100 }),
+  coordinates: json("coordinates"), // { lat: number, lng: number }
+  boundary: json("boundary"), // GeoJSON polygon for map rendering
+  elevation: decimal("elevation", { precision: 8, scale: 2 }), // meters
+  description: text("description"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Ward = typeof wards.$inferSelect;
+export type InsertWard = typeof wards.$inferInsert;
+
+/**
+ * Rainfall data: daily rainfall records per ward
+ */
+export const rainfallData = mysqlTable("rainfall_data", {
+  id: int("id").autoincrement().primaryKey(),
+  wardId: int("ward_id").notNull(),
+  recordedAt: timestamp("recorded_at").notNull(),
+  amount6h: decimal("amount_6h", { precision: 8, scale: 2 }), // mm
+  amount12h: decimal("amount_12h", { precision: 8, scale: 2 }), // mm
+  amount24h: decimal("amount_24h", { precision: 8, scale: 2 }), // mm
+  dataSource: varchar("data_source", { length: 100 }), // e.g., "CHIRPS", "KMD"
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type RainfallData = typeof rainfallData.$inferSelect;
+export type InsertRainfallData = typeof rainfallData.$inferInsert;
+
+/**
+ * Flood incidents: historical flood event records
+ */
+export const floodIncidents = mysqlTable("flood_incidents", {
+  id: int("id").autoincrement().primaryKey(),
+  wardId: int("ward_id").notNull(),
+  eventDate: timestamp("event_date").notNull(),
+  description: text("description"),
+  severity: mysqlEnum("severity", ["low", "medium", "high", "severe"]).notNull(),
+  dataSource: varchar("data_source", { length: 100 }), // e.g., "Kenya Red Cross", "Community Report"
+  sourceUrl: varchar("source_url", { length: 500 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type FloodIncident = typeof floodIncidents.$inferSelect;
+export type InsertFloodIncident = typeof floodIncidents.$inferInsert;
+
+/**
+ * Risk thresholds: configurable rainfall thresholds for each risk level
+ */
+export const riskThresholds = mysqlTable("risk_thresholds", {
+  id: int("id").autoincrement().primaryKey(),
+  level: mysqlEnum("level", ["low", "medium", "high", "severe"]).notNull().unique(),
+  rainfallLimit24h: decimal("rainfall_limit_24h", { precision: 8, scale: 2 }).notNull(), // mm
+  colorCode: varchar("color_code", { length: 10 }).notNull(), // hex color
+  description: text("description"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type RiskThreshold = typeof riskThresholds.$inferSelect;
+export type InsertRiskThreshold = typeof riskThresholds.$inferInsert;
+
+/**
+ * Community responders: registered volunteers who receive SMS alerts
+ */
+export const responders = mysqlTable("responders", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  phoneNumber: varchar("phone_number", { length: 20 }).notNull(),
+  wardId: int("ward_id").notNull(),
+  isActive: int("is_active").default(1).notNull(), // 1 = active, 0 = inactive
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Responder = typeof responders.$inferSelect;
+export type InsertResponder = typeof responders.$inferInsert;
+
+/**
+ * Alerts: SMS alert history
+ */
+export const alerts = mysqlTable("alerts", {
+  id: int("id").autoincrement().primaryKey(),
+  responderId: int("responder_id").notNull(),
+  wardId: int("ward_id").notNull(),
+  riskLevel: mysqlEnum("risk_level", ["low", "medium", "high", "severe"]).notNull(),
+  message: text("message").notNull(),
+  messageSwahili: text("message_swahili"),
+  sentAt: timestamp("sent_at").notNull(),
+  status: mysqlEnum("status", ["pending", "sent", "failed"]).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Alert = typeof alerts.$inferSelect;
+export type InsertAlert = typeof alerts.$inferInsert;
+
+/**
+ * Current ward risk: cached current risk level per ward
+ */
+export const currentWardRisk = mysqlTable("current_ward_risk", {
+  id: int("id").autoincrement().primaryKey(),
+  wardId: int("ward_id").notNull().unique(),
+  riskLevel: mysqlEnum("risk_level", ["low", "medium", "high", "severe"]).notNull(),
+  rainfall24h: decimal("rainfall_24h", { precision: 8, scale: 2 }),
+  lastUpdated: timestamp("last_updated").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type CurrentWardRisk = typeof currentWardRisk.$inferSelect;
+export type InsertCurrentWardRisk = typeof currentWardRisk.$inferInsert;

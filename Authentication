@@ -1,0 +1,141 @@
+import { Router, Request, Response } from "express";
+import { hash, compare } from "bcryptjs";
+import * as db from "./db";
+
+const router = Router();
+
+// Extend Express Request type
+declare global {
+  namespace Express {
+    interface Request {
+      userId?: number;
+      session?: any;
+    }
+  }
+}
+
+// Session middleware
+export const sessionMiddleware = (req: Request, res: Response, next: Function) => {
+  const userId = req.session?.userId;
+  if (userId) {
+    req.userId = userId;
+  }
+  next();
+};
+
+// GET /api/auth/me
+router.get("/me", async (req: Request, res: Response) => {
+  if (!req.userId) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+
+  try {
+    const user = await db.getUserById(req.userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to get user" });
+  }
+});
+
+// POST /api/auth/register
+router.post("/register", async (req: Request, res: Response) => {
+  const { email, name, password } = req.body;
+
+  if (!email || !name || !password) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  try {
+    const existingUser = await db.getUserByEmail(email);
+    if (existingUser) {
+      return res.status(409).json({ error: "User already exists" });
+    }
+
+    const hashedPassword = await hash(password, 10);
+    const user = await db.createUser({
+      email,
+      name,
+      password: hashedPassword,
+      role: "user",
+    });
+
+    if (!user) {
+      return res.status(500).json({ error: "Failed to create user" });
+    }
+
+    if (req.session) {
+      req.session.userId = user.id;
+    }
+
+    res.status(201).json({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    });
+  } catch (error) {
+    console.error("Registration error:", error);
+    res.status(500).json({ error: "Registration failed" });
+  }
+});
+
+// POST /api/auth/login
+router.post("/login", async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: "Missing email or password" });
+  }
+
+  try {
+    const user = await db.getUserByEmail(email);
+    if (!user) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const userPassword = (user as any).password || "";
+    const isValid = await compare(password, userPassword);
+    if (!isValid) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    if (req.session) {
+      req.session.userId = user.id;
+    }
+
+    res.json({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ error: "Login failed" });
+  }
+});
+
+// POST /api/auth/logout
+router.post("/logout", (req: Request, res: Response) => {
+  if (req.session && typeof req.session.destroy === "function") {
+    req.session.destroy((err: any) => {
+      if (err) {
+        return res.status(500).json({ error: "Logout failed" });
+      }
+      res.json({ success: true });
+    });
+  } else {
+    res.json({ success: true });
+  }
+});
+
+export default router;

@@ -1,0 +1,186 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 27 87% 17%;
+    --card: 0 0% 100%;
+    --card-foreground: 27 87% 17%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 27 87% 17%;
+    --muted: 27 20% 90%;
+    --muted-foreground: 27 8% 41%;
+    --accent: 142 72% 29%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 27 20% 90%;
+    --input: 27 20% 90%;
+    --ring: 142 72% 29%;
+    --radius: 0.5rem;
+    --primary: 142 72% 29%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 142 71% 45%;
+    --secondary-foreground: 0 0% 100%;
+  }
+
+  .dark {
+    --background: 27 87% 17%;
+    --foreground: 0 0% 100%;
+    --card: 27 87% 17%;
+    --card-foreground: 0 0% 100%;
+    --popover: 27 87% 17%;
+    --popover-foreground: 0 0% 100%;
+    --muted: 27 20% 30%;
+    --muted-foreground: 27 8% 70%;
+    --accent: 142 71% 45%;
+    --accent-foreground: 27 87% 17%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 27 87% 17%;
+    --border: 27 20% 30%;
+    --input: 27 20% 30%;
+    --ring: 142 71% 45%;
+    --primary: 142 71% 45%;
+    --primary-foreground: 27 87% 17%;
+    --secondary: 142 72% 29%;
+    --secondary-foreground: 0 0% 100%;
+  }
+}
+
+@layer base {
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: "Inter", sans-serif;
+  }
+
+  .container {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 80rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .flex {
+    min-height: 0;
+    min-width: 0;
+  }
+}
+
+/* Green and White Theme Utilities */
+@layer components {
+  .btn-primary {
+    background-color: #2E7D32;
+    color: white;
+    transition: background-color 0.2s;
+  }
+
+  .btn-primary:hover {
+    background-color: #1B5E20;
+  }
+
+  .btn-secondary {
+    background-color: #4CAF50;
+    color: white;
+    transition: background-color 0.2s;
+  }
+
+  .btn-secondary:hover {
+    background-color: #388E3C;
+  }
+
+  .bg-green-dark {
+    background-color: #2E7D32;
+  }
+
+  .bg-green-light {
+    background-color: #4CAF50;
+  }
+
+  .text-green-dark {
+    color: #2E7D32;
+  }
+
+  .text-green-light {
+    color: #4CAF50;
+  }
+
+  .border-green-dark {
+    border-color: #2E7D32;
+  }
+
+  .border-green-light {
+    border-color: #4CAF50;
+  }
+
+  /* Risk level colors */
+  .risk-low {
+    background-color: #4CAF50;
+    color: white;
+  }
+
+  .risk-medium {
+    background-color: #FFC107;
+    color: #333;
+  }
+
+  .risk-high {
+    background-color: #FF9800;
+    color: white;
+  }
+
+  .risk-severe {
+    background-color: #F44336;
+    color: white;
+  }
+
+  .risk-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 0.6;
+  }
+
+  .card-hover {
+    transition: all 0.2s;
+  }
+
+  .card-hover:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    transform: scale(1.05);
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.3s ease-in-out;
+}

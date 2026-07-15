@@ -1,0 +1,195 @@
+import { useAuth } from "@/_core/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/hooks/useTranslation";
+import { useLocation } from "wouter";
+import { startLogin } from "@/const";
+import { Cloud, AlertTriangle, Users, TrendingUp } from "lucide-react";
+
+export default function Home() {
+  const { user, isAuthenticated } = useAuth();
+  const { t } = useTranslation();
+  const [, setLocation] = useLocation();
+
+  return (
+    <div style={{ minHeight: "100vh", background: "linear-gradient(to bottom right, white, #f0f8f0)" }}>
+      {/* Navigation */}
+      <nav style={{ backgroundColor: "white", borderBottom: "1px solid #c8e6c9" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem", maxWidth: "80rem", margin: "0 auto" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <Cloud style={{ width: "2rem", height: "2rem", color: "#2E7D32" }} />
+            <h1 style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#2E7D32", margin: 0 }}>Nairobi Flood Alert</h1>
+          </div>
+          <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+            {isAuthenticated ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setLocation("/map")}
+                  className="border-[#4CAF50] text-[#2E7D32] hover:bg-green-50"
+                >
+                  {t("map")}
+                </Button>
+                {user?.role === "admin" && (
+                  <Button
+                    onClick={() => setLocation("/admin")}
+                    className="bg-[#2E7D32] hover:bg-[#1B5E20] text-white"
+                  >
+                    {t("admin")}
+                  </Button>
+                )}
+                <Button variant="ghost" onClick={() => window.location.href = "/api/trpc/auth.logout"}>
+                  {t("logout")}
+                </Button>
+              </>
+            ) : (
+              <Button
+                onClick={startLogin}
+                className="bg-[#2E7D32] hover:bg-[#1B5E20] text-white"
+              >
+                Sign In
+              </Button>
+            )}
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section style={{ maxWidth: "80rem", margin: "0 auto", padding: "5rem 1rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3rem", alignItems: "center" }}>
+          <div>
+            <h2 style={{ fontSize: "3rem", fontWeight: "bold", color: "#2E7D32", marginBottom: "1.5rem" }}>
+              Real-time Flood Risk Monitoring for Nairobi
+            </h2>
+            <p style={{ fontSize: "1.125rem", color: "#374151", marginBottom: "2rem" }}>
+              Stay informed about flood risks in your ward. Access real-time rainfall data, flood forecasts, and emergency alerts to keep your community safe.
+            </p>
+            <div style={{ display: "flex", gap: "1rem" }}>
+              <Button
+                onClick={() => setLocation("/map")}
+                className="bg-[#2E7D32] hover:bg-[#1B5E20] text-white px-8 py-6 text-lg"
+              >
+                View Flood Risk Map
+              </Button>
+              {!isAuthenticated && (
+                <Button
+                  onClick={startLogin}
+                  variant="outline"
+                  className="border-[#4CAF50] text-[#2E7D32] px-8 py-6 text-lg hover:bg-green-50"
+                >
+                  Get Started
+                </Button>
+              )}
+            </div>
+          </div>
+          <div style={{ background: "linear-gradient(to bottom right, #4CAF50, #2E7D32)", borderRadius: "0.5rem", padding: "2rem", color: "white" }}>
+            <AlertTriangle style={{ width: "4rem", height: "4rem", marginBottom: "1rem" }} />
+            <h3 style={{ fontSize: "1.5rem", fontWeight: "bold", marginBottom: "1rem" }}>10 High-Risk Wards Monitored</h3>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              <li>✓ Korogocho, Kiamaiko, Mathare</li>
+              <li>✓ Kibera, Mukuru kwa Njenga, Viwandani</li>
+              <li>✓ Riara, Mabatini</li>
+              <li>✓ Ngong River & Mathare River Zones</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section style={{ backgroundColor: "white", padding: "5rem 1rem", borderTop: "1px solid #c8e6c9" }}>
+        <div style={{ maxWidth: "80rem", margin: "0 auto" }}>
+          <h3 style={{ fontSize: "1.875rem", fontWeight: "bold", textAlign: "center", color: "#2E7D32", marginBottom: "3rem" }}>
+            Key Features
+          </h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "2rem" }}>
+            <div className="p-6 bg-green-50 rounded-lg border border-[#4CAF50]">
+              <Cloud className="w-12 h-12 text-[#2E7D32] mb-4" />
+              <h4 className="text-lg font-bold text-[#2E7D32] mb-2">Real-time Rainfall</h4>
+              <p className="text-gray-700">
+                Track 6h, 12h, and 24h cumulative rainfall data per ward
+              </p>
+            </div>
+            <div className="p-6 bg-green-50 rounded-lg border border-[#4CAF50]">
+              <AlertTriangle className="w-12 h-12 text-[#2E7D32] mb-4" />
+              <h4 className="text-lg font-bold text-[#2E7D32] mb-2">Risk Alerts</h4>
+              <p className="text-gray-700">
+                Automatic SMS alerts when flood risk reaches High or Severe levels
+              </p>
+            </div>
+            <div className="p-6 bg-green-50 rounded-lg border border-[#4CAF50]">
+              <TrendingUp className="w-12 h-12 text-[#2E7D32] mb-4" />
+              <h4 className="text-lg font-bold text-[#2E7D32] mb-2">24-Hour Forecast</h4>
+              <p className="text-gray-700">
+                Predicted flood risk levels for the next 24 hours based on rainfall trends
+              </p>
+            </div>
+            <div className="p-6 bg-green-50 rounded-lg border border-[#4CAF50]">
+              <Users className="w-12 h-12 text-[#2E7D32] mb-4" />
+              <h4 className="text-lg font-bold text-[#2E7D32] mb-2">Community Network</h4>
+              <p className="text-gray-700">
+                Connect with registered community responders and disaster volunteers
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Risk Levels Section */}
+      <section style={{ padding: "5rem 1rem" }}>
+        <div style={{ maxWidth: "80rem", margin: "0 auto" }}>
+          <h3 style={{ fontSize: "1.875rem", fontWeight: "bold", textAlign: "center", color: "#2E7D32", marginBottom: "3rem" }}>
+            Understanding Risk Levels
+          </h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1.5rem" }}>
+            <div className="p-6 bg-[#4CAF50] text-white rounded-lg">
+              <h4 className="text-xl font-bold mb-2">Low</h4>
+              <p className="text-sm">Rainfall &lt; 10mm/24h</p>
+            </div>
+            <div className="p-6 bg-[#FFC107] text-gray-800 rounded-lg">
+              <h4 className="text-xl font-bold mb-2">Medium</h4>
+              <p className="text-sm">Rainfall 10-25mm/24h</p>
+            </div>
+            <div className="p-6 bg-[#FF9800] text-white rounded-lg">
+              <h4 className="text-xl font-bold mb-2">High</h4>
+              <p className="text-sm">Rainfall 25-50mm/24h</p>
+            </div>
+            <div className="p-6 bg-[#F44336] text-white rounded-lg">
+              <h4 className="text-xl font-bold mb-2">Severe</h4>
+              <p className="text-sm">Rainfall &gt; 50mm/24h</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer style={{ backgroundColor: "#2E7D32", color: "white", padding: "2rem 1rem", borderTop: "1px solid #1B5E20" }}>
+        <div style={{ maxWidth: "80rem", margin: "0 auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "2rem", marginBottom: "2rem" }}>
+            <div>
+              <h5 className="font-bold mb-4">About</h5>
+              <p className="text-sm text-green-100">
+                Nairobi Flood Alert is a community-driven flood monitoring system providing real-time risk assessment and emergency alerts.
+              </p>
+            </div>
+            <div>
+              <h5 className="font-bold mb-4">Data Sources</h5>
+              <ul className="text-sm text-green-100 space-y-1">
+                <li>• Kenya Meteorological Department</li>
+                <li>• Sentinel-1 SAR Imagery</li>
+                <li>• Kenya Red Cross Reports</li>
+              </ul>
+            </div>
+            <div>
+              <h5 className="font-bold mb-4">Disclaimer</h5>
+              <p className="text-sm text-green-100">
+                This is a prototype system. Not an official early warning system.
+              </p>
+            </div>
+          </div>
+          <div style={{ borderTop: "1px solid #1B5E20", paddingTop: "1rem", textAlign: "center", fontSize: "0.875rem", color: "#c8e6c9" }}>
+            <p style={{ margin: 0 }}>&copy; 2026 Nairobi Flood Alert System. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}

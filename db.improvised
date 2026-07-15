@@ -1,0 +1,329 @@
+import {
+  InsertUser,
+  users,
+  wards,
+  rainfallData,
+  floodIncidents,
+  riskThresholds,
+  responders,
+  alerts,
+  currentWardRisk,
+  InsertWard,
+  InsertRainfallData,
+  InsertFloodIncident,
+  InsertResponder,
+  InsertAlert,
+  InsertCurrentWardRisk,
+} from "../drizzle/schema";
+import { ENV } from "./_core/env";
+
+let _db: ReturnType<typeof drizzle> | null = null;
+
+export async function getDb() {
+  if (!_db && process.env.DATABASE_URL) {
+    try {
+      _db = drizzle(process.env.DATABASE_URL);
+    } catch (error) {
+      console.warn("[Database] Failed to connect:", error);
+      _db = null;
+    }
+  }
+  return _db;
+}
+
+export async function upsertUser(user: InsertUser): Promise<void> {
+  if (!user.openId) {
+    throw new Error("User openId is required for upsert");
+  }
+
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot upsert user: database not available");
+    return;
+  }
+
+  try {
+    const values: InsertUser = {
+      openId: user.openId,
+    };
+    const updateSet: Record<string, unknown> = {};
+
+    const textFields = ["name", "email", "loginMethod"] as const;
+    type TextField = (typeof textFields)[number];
+
+    const assignNullable = (field: TextField) => {
+      const value = user[field];
+      if (value === undefined) return;
+      const normalized = value ?? null;
+      values[field] = normalized;
+      updateSet[field] = normalized;
+    };
+
+    textFields.forEach(assignNullable);
+
+    if (user.lastSignedIn !== undefined) {
+      values.lastSignedIn = user.lastSignedIn;
+      updateSet.lastSignedIn = user.lastSignedIn;
+    }
+    if (user.role !== undefined) {
+      values.role = user.role;
+      updateSet.role = user.role;
+    } else if (user.openId === ENV.ownerOpenId) {
+      values.role = "admin";
+      updateSet.role = "admin";
+    }
+
+    if (!values.lastSignedIn) {
+      values.lastSignedIn = new Date();
+    }
+
+    if (Object.keys(updateSet).length === 0) {
+      updateSet.lastSignedIn = new Date();
+    }
+
+    await db.insert(users).values(values).onDuplicateKeyUpdate({
+      set: updateSet,
+    });
+  } catch (error) {
+    console.error("[Database] Failed to upsert user:", error);
+    throw error;
+  }
+}
+
+export async function getUserByOpenId(openId: string) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user: database not available");
+    return undefined;
+  }
+
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.openId, openId))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getUserById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createUser(user: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(users).values(user);
+  return getUserByEmail(user.email);
+}
+
+// Ward queries
+export async function getAllWards() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(wards);
+}
+
+export async function getWardById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(wards).where(eq(wards.id, id)).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function createWard(data: InsertWard) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(wards).values(data);
+}
+
+export async function updateWard(id: number, data: Partial<InsertWard>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(wards).set(data).where(eq(wards.id, id));
+}
+
+// Rainfall data queries
+export async function getRainfallDataByWard(wardId: number, limit: number = 100) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(rainfallData)
+    .where(eq(rainfallData.wardId, wardId))
+    .orderBy(desc(rainfallData.recordedAt))
+    .limit(limit);
+}
+
+export async function createRainfallData(data: InsertRainfallData) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(rainfallData).values(data);
+}
+
+export async function getLatestRainfallData(wardId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db
+    .select()
+    .from(rainfallData)
+    .where(eq(rainfallData.wardId, wardId))
+    .orderBy(desc(rainfallData.recordedAt))
+    .limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+// Flood incident queries
+export async function getFloodIncidentsByWard(wardId: number, limit: number = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(floodIncidents)
+    .where(eq(floodIncidents.wardId, wardId))
+    .orderBy(desc(floodIncidents.eventDate))
+    .limit(limit);
+}
+
+export async function createFloodIncident(data: InsertFloodIncident) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(floodIncidents).values(data);
+}
+
+export async function updateFloodIncident(id: number, data: Partial<InsertFloodIncident>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(floodIncidents).set(data).where(eq(floodIncidents.id, id));
+}
+
+export async function deleteFloodIncident(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(floodIncidents).where(eq(floodIncidents.id, id));
+}
+
+// Risk threshold queries
+export async function getAllRiskThresholds() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(riskThresholds);
+}
+
+export async function getRiskThresholdByLevel(level: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db
+    .select()
+    .from(riskThresholds)
+    .where(eq(riskThresholds.level, level as any))
+    .limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function updateRiskThreshold(id: number, data: Partial<any>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(riskThresholds).set(data).where(eq(riskThresholds.id, id));
+}
+
+// Responder queries
+export async function getRespondersByWard(wardId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(responders)
+    .where(and(eq(responders.wardId, wardId), eq(responders.isActive, 1)));
+}
+
+export async function getAllResponders() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(responders).where(eq(responders.isActive, 1));
+}
+
+export async function createResponder(data: InsertResponder) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(responders).values(data);
+}
+
+export async function updateResponder(id: number, data: Partial<InsertResponder>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(responders).set(data).where(eq(responders.id, id));
+}
+
+export async function deleteResponder(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(responders).set({ isActive: 0 }).where(eq(responders.id, id));
+}
+
+// Alert queries
+export async function createAlert(data: InsertAlert) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(alerts).values(data);
+}
+
+export async function getAlertHistory(limit: number = 100) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(alerts).orderBy(desc(alerts.sentAt)).limit(limit);
+}
+
+export async function getAlertsByResponder(responderId: number, limit: number = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(alerts)
+    .where(eq(alerts.responderId, responderId))
+    .orderBy(desc(alerts.sentAt))
+    .limit(limit);
+}
+
+// Current ward risk queries
+export async function getCurrentWardRisks() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(currentWardRisk);
+}
+
+export async function getCurrentWardRisk(wardId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db
+    .select()
+    .from(currentWardRisk)
+    .where(eq(currentWardRisk.wardId, wardId))
+    .limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function upsertCurrentWardRisk(data: InsertCurrentWardRisk) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .insert(currentWardRisk)
+    .values(data)
+    .onDuplicateKeyUpdate({
+      set: {
+        riskLevel: data.riskLevel,
+        rainfall24h: data.rainfall24h,
+        lastUpdated: data.lastUpdated,
+      },
+    });
+}
